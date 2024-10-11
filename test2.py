@@ -18,14 +18,14 @@ def format_resume_text(raw_text):
     
     # Initialize structured output
     resume_data = {
-        "Skills": "",
-        "Interests": "",
-        "Education": "",
-        "Industrial Project": "",
-        "Achievements": "",
-        "Organization": "",
-        "Certificates": "",
-        "Projects": ""
+        "SKILLS": "",
+        "INTERESTS": "",
+        "EDUCATION": "",
+        "INDUSTRIAL PROJECT": "",
+        "ACHIEVEMENTS": "",
+        "ORGANIZATION": "",
+        "CERTIFICATES": "",
+        "PROJECTS": ""
     }
     
     current_section = None
@@ -34,33 +34,13 @@ def format_resume_text(raw_text):
         if line.strip() == "":
             continue
 
-        line_lower = line.lower()  # Convert line to lower case for comparison
+        line_upper = line.upper()  # Convert line to uppercase for comparison
 
         # Check for section headers
-        if 'skills' in line_lower:
-            current_section = 'Skills'
-            continue
-        elif 'interests' in line_lower:
-            current_section = 'Interests'
-            continue
-        elif 'education' in line_lower:
-            current_section = 'Education'
-            continue
-        elif 'industrial project' in line_lower:
-            current_section = 'Industrial Project'
-            continue
-        elif 'achievements' in line_lower:
-            current_section = 'Achievements'
-            continue
-        elif 'organization' in line_lower:
-            current_section = 'Organization'
-            continue
-        elif 'certificates' in line_lower:
-            current_section = 'Certificates'
-            continue
-        elif 'projects' in line_lower:
-            current_section = 'Projects'
-            continue
+        for section in resume_data.keys():
+            if section in line_upper:  # Check for section headers without braces
+                current_section = section
+                break
 
         # Append the line to the appropriate section content
         if current_section:
@@ -84,15 +64,39 @@ def insert_table_after_paragraph(doc, para, left_content, right_content):
     # Move the table after the paragraph
     para._element.addnext(table._element)
 
-# Function to fill the Word template
+# Function to format points into lines (two points per line)
+def format_points(content):
+    points = content.strip().split('\n')  # Split by new lines to get individual points
+    formatted_lines = []
+
+    # Group points into pairs for formatting
+    for i in range(0, len(points), 2):
+        line = ""
+        if i < len(points):
+            line += points[i].strip()  # First point
+        if i + 1 < len(points):
+            line += " | " + points[i + 1].strip()  # Second point (if exists)
+        formatted_lines.append(line)
+
+    return '\n'.join(formatted_lines)
+
+# Function to fill the Word template dynamically
 def fill_docx_template(template_path, output_path, resume_data):
     doc = Document(template_path)
 
+    # Debug: Print all paragraphs in the template
+    for para in doc.paragraphs:
+        print(f"Paragraph: {para.text}")  # Print each paragraph for debugging
+
     # Traverse the paragraphs in the document
     for para in doc.paragraphs:
-        found_headers = [key for key in resume_data if f'{{{key}}}' in para.text]
+        found_headers = [key for key in resume_data.keys() if key in para.text]
         
-        if len(found_headers) == 2:  # If two placeholders are found on the same line
+        # Debugging: Print detected headers
+        print(f"Found headers in paragraph: {found_headers}")
+
+        # Handle case where two headers are on the same line
+        if len(found_headers) == 2:  # If two headers are found on the same line
             left_header, right_header = found_headers
             left_content = resume_data[left_header].strip()
             right_content = resume_data[right_header].strip()
@@ -102,11 +106,13 @@ def fill_docx_template(template_path, output_path, resume_data):
             insert_table_after_paragraph(doc, para, left_content, right_content)  # Insert content
 
         # For single header, replace the placeholder with content
-        for key, value in resume_data.items():
-            placeholder = '{' + key + '}'  # For example, {Skills}
+        for key in resume_data.keys():
+            placeholder = key  # For example, SKILLS
             if placeholder in para.text:
-                # Replace only the placeholder, leave the header intact
-                para.text = para.text.replace(placeholder, value.strip())
+                # Format points if the content has multiple lines
+                formatted_content = format_points(resume_data[key].strip())
+                print(f"Replacing {placeholder} with: {formatted_content}")  # Debug output
+                para.text = para.text.replace(placeholder, formatted_content)
 
     # Save the updated document
     doc.save(output_path)
@@ -120,7 +126,7 @@ def validate_template(template_path, resume_data):
     for key in resume_data.keys():
         found = False
         for para in doc.paragraphs:
-            placeholder = '{' + key + '}'
+            placeholder = key  # For example, SKILLS
             if placeholder in para.text:
                 found = True
                 break
@@ -134,7 +140,7 @@ def validate_template(template_path, resume_data):
 
 # Main part: extracting and populating resume
 pdf_path = 'Final.pdf'  # Replace with your PDF file path
-template_path = 'template.docx'  # Path to your Word template file
+template_path = 'My Resume (6).docx'  # Path to your Word template file
 output_path = 'populated_resume.docx'  # Define the output Word file path
 
 # Extract the text from the PDF resume
